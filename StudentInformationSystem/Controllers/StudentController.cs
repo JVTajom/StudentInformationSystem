@@ -1,81 +1,89 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using StudentInformationSystem.Models;
 
 namespace StudentInformationSystem.Controllers
 {
     public class StudentController : Controller
     {
-        private static List<Student> students = new List<Student>();
-        public IActionResult Index()
+        private static SISDBContext _context;
+        public StudentController(SISDBContext context)
         {
+            _context = context;
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Index()
+        {
+            var students = await _context.Students.ToListAsync();
             return View(students);
         }
 
+        [HttpGet]
         public IActionResult Create()
         {
             return View();
         }
 
         [HttpPost]
-        public IActionResult Create(Student student)
+        public async Task<IActionResult> Create(Student student)
         {
             if (ModelState.IsValid)
             {
-                student.StudentId = students.Count + 1;
-                students.Add(student);
-                return RedirectToAction("Create");
+                int id = _context.Students.Count() + 1;
+                student.StudentId = id; // Assign a new ID
+                _context.Students.Add(student);
+                await _context.SaveChangesAsync();
+                return RedirectToAction("Index");
             }
-            return View(students);
-        }
 
-        public IActionResult Edit(int id)
+            return View(student);
+        }
+        [HttpGet]
+        public async Task<IActionResult> Edit(int id)
         {
-            var student = students.FirstOrDefault(s => s.StudentId == id);
+            var student = await _context.Students.FindAsync(id);
             if (student == null)
                 return NotFound();
             return View(student);
         }
 
         [HttpPost]
-        public IActionResult Edit(int id, Student student)
+        public async Task<IActionResult> Edit(int id, Student student)
         {
             if (id != student.StudentId)
                 return NotFound();
+
             if (ModelState.IsValid)
             {
-                var existingStudent = students.FirstOrDefault(s => s.StudentId == id);
-                if (existingStudent == null)
-                    return NotFound();
-
-                existingStudent.FirstName = student.FirstName;
-                existingStudent.MiddleName = student.MiddleName;
-                existingStudent.LastName = student.LastName;
-                existingStudent.YearLevel = student.YearLevel;
-                existingStudent.Course = student.Course;
-                existingStudent.DateOfBirth = student.DateOfBirth;
-
+                _context.Entry(student).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
                 return RedirectToAction("Index");
             }
+
             return View(student);
         }
 
-        public IActionResult Delete(int id)
+        [HttpGet]
+        public async Task<IActionResult> Delete(int id)
         {
-            var student = students.FirstOrDefault(s => s.StudentId ==id);
+            var student = await _context.Students.FindAsync(id);
             if (student == null)
                 return NotFound();
             return View(student);
         }
 
-        [HttpPost,  ActionName("Delete")]
-        public IActionResult DeleteConfirmed(int id)
+        [HttpPost, ActionName("Delete")]
+        public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var student = students.FirstOrDefault(s => s.StudentId==id);
-            if(student != null)
+            var student = await _context.Students.FindAsync(id);
+            if (student != null)
             {
-                students.Remove(student);
+                _context.Students.Remove(student);
+                await _context.SaveChangesAsync();
             }
             return RedirectToAction("Index");
         }
     }
 }
+
